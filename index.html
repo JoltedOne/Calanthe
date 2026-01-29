@@ -8,104 +8,141 @@
 *{margin:0;padding:0;box-sizing:border-box;}
 html,body{width:100%;height:100%;overflow:hidden;background:#0a0a12;cursor:crosshair;font-family:'Segoe UI',system-ui,sans-serif;}
 canvas{display:block;}
-#ui{position:fixed;bottom:20px;left:20px;background:rgba(12,15,30,0.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(80,100,160,0.12);border-radius:10px;padding:14px 18px;color:rgba(210,215,230,0.9);font-size:12px;user-select:none;z-index:10;min-width:185px;transition:opacity 0.3s;}
+#ui{position:fixed;bottom:20px;left:20px;background:rgba(12,15,30,0.78);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid rgba(80,100,160,0.12);border-radius:10px;padding:14px 18px;color:rgba(210,215,230,0.9);font-size:12px;user-select:none;z-index:10;min-width:185px;}
 #ui h3{font-size:10px;text-transform:uppercase;letter-spacing:1.8px;color:rgba(140,155,190,0.5);margin-bottom:10px;font-weight:500;}
-.ctrl-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
-.ctrl-row:last-child{margin-bottom:0;}
-.ctrl-row label{font-size:11px;color:rgba(180,188,210,0.75);min-width:62px;}
-.ctrl-row input[type=color]{-webkit-appearance:none;border:1px solid rgba(100,120,180,0.2);border-radius:4px;width:28px;height:20px;background:transparent;cursor:pointer;padding:0;}
-.ctrl-row input[type=color]::-webkit-color-swatch-wrapper{padding:1px;}
-.ctrl-row input[type=color]::-webkit-color-swatch{border-radius:2px;border:none;}
-.ctrl-row input[type=range]{-webkit-appearance:none;width:88px;height:3px;background:rgba(80,100,160,0.2);border-radius:2px;outline:none;cursor:pointer;}
-.ctrl-row input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:rgba(170,180,210,0.65);border-radius:50%;cursor:pointer;}
+.cr{display:flex;align-items:center;justify-content:space-between;margin-bottom:7px;}
+.cr:last-child{margin-bottom:0;}
+.cr label{font-size:11px;color:rgba(180,188,210,0.75);min-width:62px;}
+.cr input[type=color]{-webkit-appearance:none;border:1px solid rgba(100,120,180,0.2);border-radius:4px;width:28px;height:20px;background:transparent;cursor:pointer;padding:0;}
+.cr input[type=color]::-webkit-color-swatch-wrapper{padding:1px;}
+.cr input[type=color]::-webkit-color-swatch{border-radius:2px;border:none;}
+.cr input[type=range]{-webkit-appearance:none;width:88px;height:3px;background:rgba(80,100,160,0.2);border-radius:2px;outline:none;cursor:pointer;}
+.cr input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:10px;height:10px;background:rgba(170,180,210,0.65);border-radius:50%;cursor:pointer;}
 #info{position:fixed;top:15px;left:50%;transform:translateX(-50%);color:rgba(140,155,190,0.3);font-size:10px;letter-spacing:0.5px;z-index:10;font-family:'Segoe UI',system-ui,sans-serif;}
 </style>
 </head>
 <body>
-<div id="info">A / D pan · mouse aim · click shoot</div>
+<div id="info">WASD move · mouse aim · click shoot</div>
 <div id="ui">
-  <h3>◆ Smoke</h3>
-  <div class="ctrl-row"><label>Color</label><input type="color" id="smokeColor" value="#8090b0"></div>
-  <div class="ctrl-row"><label>Density</label><input type="range" id="density" min="0" max="100" value="60"></div>
-  <div class="ctrl-row"><label>Speed</label><input type="range" id="speed" min="0" max="100" value="40"></div>
-  <div class="ctrl-row"><label>Audio</label><input type="range" id="audioReact" min="0" max="100" value="70"></div>
+  <h3>&#9670; Smoke</h3>
+  <div class="cr"><label>Color</label><input type="color" id="smokeColor" value="#8090b0"></div>
+  <div class="cr"><label>Density</label><input type="range" id="density" min="0" max="100" value="60"></div>
+  <div class="cr"><label>Speed</label><input type="range" id="speed" min="0" max="100" value="40"></div>
+  <div class="cr"><label>Audio</label><input type="range" id="audioReact" min="0" max="100" value="70"></div>
+  <div class="cr"><label>Quality</label><input type="range" id="quality" min="50" max="100" value="75"></div>
 </div>
 <canvas id="c"></canvas>
 
 <script>
+// ============================================================
+// CONFIG
+// ============================================================
 const CFG = {
   smokeColor: [0.502, 0.565, 0.690],
   density: 0.6,
   speed: 0.4,
   audioReact: 0.7,
+  quality: 0.75, // render scale (0.5 = half, 1.0 = full)
   projectileSpeed: 14,
   panSpeed: 3.5,
+  moveSpeed: 3.0,
 };
 
+// ============================================================
+// GL SETUP
+// ============================================================
 const canvas = document.getElementById('c');
 const gl = canvas.getContext('webgl2', { alpha: false, antialias: false });
 if (!gl) { document.body.innerHTML = '<p style="color:#fff;padding:40px">WebGL2 required</p>'; throw 'no gl'; }
 
-let W, H, aspect;
+let W, H, rW, rH; // display size and render size
+let fbo, fboTex, fboDepth; // offscreen framebuffer
+
+function createFBO(w, h) {
+  if (fbo) { gl.deleteFramebuffer(fbo); gl.deleteTexture(fboTex); gl.deleteRenderbuffer(fboDepth); }
+  fbo = gl.createFramebuffer();
+  fboTex = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, fboTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, w, h, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, fboTex, 0);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+
 function resize() {
   W = canvas.width = window.innerWidth;
   H = canvas.height = window.innerHeight;
-  aspect = W / H;
-  gl.viewport(0, 0, W, H);
+  rW = Math.round(W * CFG.quality);
+  rH = Math.round(H * CFG.quality);
+  createFBO(rW, rH);
 }
 resize();
 window.addEventListener('resize', resize);
 
-function createShader(type, src) {
+function mkShader(type, src) {
   const s = gl.createShader(type);
   gl.shaderSource(s, src);
   gl.compileShader(s);
-  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error(gl.getShaderInfoLog(s)); }
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) console.error(gl.getShaderInfoLog(s));
   return s;
 }
-function createProgram(vs, fs) {
+function mkProgram(vs, fs) {
   const p = gl.createProgram();
-  gl.attachShader(p, vs);
-  gl.attachShader(p, fs);
+  gl.attachShader(p, mkShader(gl.VERTEX_SHADER, vs));
+  gl.attachShader(p, mkShader(gl.FRAGMENT_SHADER, fs));
   gl.linkProgram(p);
-  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) { console.error(gl.getProgramInfoLog(p)); }
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) console.error(gl.getProgramInfoLog(p));
   return p;
 }
 
-const quadVS = `#version 300 es
+// ============================================================
+// SHARED VERTEX SHADER
+// ============================================================
+const QUAD_VS = `#version 300 es
 in vec2 a_pos;
-void main(){ gl_Position = vec4(a_pos, 0.0, 1.0); }`;
+out vec2 v_uv;
+void main(){
+  v_uv = a_pos * 0.5 + 0.5;
+  gl_Position = vec4(a_pos, 0.0, 1.0);
+}`;
 
-const smokeFS = `#version 300 es
+// ============================================================
+// SMOKE VOLUMETRIC SHADER (renders to half-res FBO)
+// ============================================================
+const SMOKE_FS = `#version 300 es
 precision highp float;
+in vec2 v_uv;
 out vec4 fragColor;
 
 uniform float u_time;
-uniform vec2 u_res;
+uniform vec2 u_res;   // render resolution (half-res)
+uniform vec2 u_fullRes; // display resolution for aspect
 uniform vec3 u_smokeColor;
 uniform float u_density;
 uniform float u_speed;
-uniform float u_camX;
+uniform vec3 u_camPos;  // xyz camera position
 uniform float u_aimY;
 uniform float u_audioLevel;
 uniform float u_bassLevel;
 
-// Impacts: xyz = world pos where projectile hit smoke, w = age since impact
 #define MAX_IMP 20
 uniform int u_impCount;
 uniform vec4 u_imp[MAX_IMP];
 
-// Active flying projectiles: xyz = current world pos, w = age
 #define MAX_PROJ 16
 uniform int u_projCount;
 uniform vec4 u_projPos[MAX_PROJ];
 
-// Rings
 #define MAX_RINGS 12
 uniform int u_ringCount;
 uniform vec4 u_rings[MAX_RINGS];
 
-// ---- Noise ----
+// ---- Optimized noise: single hash, no sin() ----
+// Using bitwise-style polynomial hash — faster than sin-based
 vec3 hash3(vec3 p){
   p = vec3(dot(p,vec3(127.1,311.7,74.7)),
            dot(p,vec3(269.5,183.3,246.1)),
@@ -116,7 +153,7 @@ vec3 hash3(vec3 p){
 float gnoise(vec3 p){
   vec3 i = floor(p), f = fract(p);
   vec3 u = f*f*(3.0-2.0*f);
-  return mix(mix(mix(dot(hash3(i+vec3(0,0,0)),f-vec3(0,0,0)),
+  return mix(mix(mix(dot(hash3(i),f),
                      dot(hash3(i+vec3(1,0,0)),f-vec3(1,0,0)),u.x),
                  mix(dot(hash3(i+vec3(0,1,0)),f-vec3(0,1,0)),
                      dot(hash3(i+vec3(1,1,0)),f-vec3(1,1,0)),u.x),u.y),
@@ -126,281 +163,303 @@ float gnoise(vec3 p){
                      dot(hash3(i+vec3(1,1,1)),f-vec3(1,1,1)),u.x),u.y),u.z);
 }
 
-float fbm(vec3 p){
+// 4-octave FBM (reduced from 5 for perf)
+float fbm4(vec3 p){
   float v = 0.0, a = 0.5;
-  for(int i = 0; i < 5; i++){
+  for(int i = 0; i < 4; i++){
     v += a * gnoise(p);
-    p = p * 2.02 + vec3(1.7, 1.2, 0.8);
+    p = p * 2.03 + vec3(1.7, 1.2, 0.8);
     a *= 0.5;
   }
   return v;
 }
 
-// Domain-warped FBM for more organic turbulence
-float warpedFbm(vec3 p, float t){
-  vec3 q = vec3(fbm(p + vec3(0.0, 0.0, t * 0.1)),
-                fbm(p + vec3(5.2, 1.3, t * 0.08)),
-                fbm(p + vec3(1.7, 9.2, t * 0.12)));
-  vec3 r = vec3(fbm(p + 4.0 * q + vec3(1.7, 9.2, t * 0.05)),
-                fbm(p + 4.0 * q + vec3(8.3, 2.8, t * 0.06)),
-                fbm(p + 4.0 * q + vec3(3.1, 6.5, t * 0.07)));
-  return fbm(p + 3.5 * r);
+// 3-octave fast FBM for shadow/cheap samples
+float fbm3(vec3 p){
+  float v = 0.0, a = 0.5;
+  for(int i = 0; i < 3; i++){
+    v += a * gnoise(p);
+    p = p * 2.03 + vec3(1.7, 1.2, 0.8);
+    a *= 0.5;
+  }
+  return v;
 }
 
-// Compute impact distortion: displaces the sample point in world space
-// to create void + turbulent refill
+// Single-level domain warp (was triple-nested, now 3 fbm calls total)
+float warpedFbm(vec3 p, float t){
+  vec3 q = vec3(fbm3(p + vec3(0.0, 0.0, t * 0.1)),
+                fbm3(p + vec3(5.2, 1.3, t * 0.08)),
+                fbm3(p + vec3(1.7, 9.2, t * 0.12)));
+  return fbm4(p + 3.0 * q);
+}
+
+// ---- Impact domain warping ----
 vec3 impactWarp(vec3 p){
-  vec3 totalWarp = vec3(0.0);
+  vec3 tw = vec3(0.0);
   for(int i = 0; i < MAX_IMP; i++){
     if(i >= u_impCount) break;
     vec3 ip = u_imp[i].xyz;
     float age = u_imp[i].w;
-
     vec3 delta = p - ip;
     float dist = length(delta);
-    vec3 dir = dist > 0.001 ? delta / dist : vec3(0.0, 1.0, 0.0);
+    vec3 dir = dist > 0.001 ? delta / dist : vec3(0,1,0);
 
-    // Expanding shockwave radius
-    float waveRadius = age * 2.5;
-    float waveFront = abs(dist - waveRadius);
+    float waveR = age * 2.5;
+    float wf = abs(dist - waveR);
 
-    // Push smoke outward from impact center (creates the void)
-    float pushStrength = 1.8 * exp(-age * 0.6) / (1.0 + dist * 1.5);
-    totalWarp += dir * pushStrength;
+    // Radial push (void creation)
+    tw += dir * 1.8 * exp(-age * 0.6) / (1.0 + dist * 1.5);
 
-    // Rippling waves that propagate outward
-    float ripple = sin(dist * 6.0 - age * 8.0) * exp(-waveFront * 2.0) * exp(-age * 0.4);
-    totalWarp += dir * ripple * 0.8;
+    // Propagating ripple
+    tw += dir * sin(dist * 6.0 - age * 8.0) * exp(-wf * 2.0) * exp(-age * 0.4) * 0.8;
 
-    // Tangential swirl — creates the turbulent mixing as smoke refills
-    vec3 tangent = normalize(cross(dir, vec3(0.0, 1.0, 0.3)));
-    float swirl = sin(dist * 4.0 - age * 5.0 + age * dist * 2.0) * exp(-dist * 0.8) * exp(-age * 0.3);
-    totalWarp += tangent * swirl * 0.6;
+    // Tangential swirl
+    vec3 tang = normalize(cross(dir, vec3(0.0, 1.0, 0.3)));
+    tw += tang * sin(dist * 4.0 - age * 5.0 + age * dist * 2.0) * exp(-dist * 0.8) * exp(-age * 0.3) * 0.6;
 
-    // Vertical turbulence from thermal disruption
-    float upBoil = gnoise(p * 3.0 + vec3(0.0, -age * 2.0, 0.0)) * exp(-dist * 0.6) * exp(-age * 0.5);
-    totalWarp.y += upBoil * 0.5;
+    // Thermal boil (cheap single noise lookup)
+    tw.y += gnoise(p * 3.0 + vec3(0, -age * 2.0, 0)) * exp(-dist * 0.6) * exp(-age * 0.5) * 0.5;
   }
-  return totalWarp;
+  return tw;
 }
 
-// Compute how much density is subtracted (void carving)
 float impactVoid(vec3 p){
-  float voidAmount = 0.0;
+  float v = 0.0;
   for(int i = 0; i < MAX_IMP; i++){
     if(i >= u_impCount) break;
     vec3 ip = u_imp[i].xyz;
     float age = u_imp[i].w;
     float dist = length(p - ip);
 
-    // Core void: strong at first, slowly fills back in
-    // The void radius expands then contracts as smoke fills back
-    float voidRadius = 0.3 + age * 0.8 - age * age * 0.08;
-    voidRadius = max(voidRadius, 0.05);
-    float core = smoothstep(voidRadius, voidRadius * 0.2, dist);
-    float fade = exp(-age * 0.35); // void fills back over time
-    voidAmount += core * fade;
+    float vr = max(0.3 + age * 0.8 - age * age * 0.08, 0.05);
+    v += smoothstep(vr, vr * 0.2, dist) * exp(-age * 0.35);
 
-    // Shockwave thinning ring
     float waveR = age * 2.5;
-    float ringDist = abs(dist - waveR);
-    float ring = exp(-ringDist * 4.0) * exp(-age * 0.5) * 0.4;
-    voidAmount += ring;
+    v += exp(-abs(dist - waveR) * 4.0) * exp(-age * 0.5) * 0.4;
   }
-  return clamp(voidAmount, 0.0, 1.0);
+  return clamp(v, 0.0, 1.0);
 }
 
-// Color shift from impacts
-vec3 impactColor(vec3 p, vec3 baseCol){
-  vec3 col = baseCol;
+vec3 impactColor(vec3 p, vec3 base){
+  vec3 col = base;
   for(int i = 0; i < MAX_IMP; i++){
     if(i >= u_impCount) break;
     vec3 ip = u_imp[i].xyz;
     float age = u_imp[i].w;
     float dist = length(p - ip);
+    float inf = exp(-dist * 1.5) * exp(-age * 0.25);
 
-    float influence = exp(-dist * 1.5) * exp(-age * 0.25);
+    vec3 hot = mix(vec3(1.0, 0.6, 0.15), vec3(1.0, 0.85, 0.5), smoothstep(0.0, 1.5, dist));
+    col = mix(col, hot, inf * 0.8 * exp(-age * 0.5));
 
-    // Hot core: bright warm color at impact, cools outward
-    vec3 hotColor = mix(vec3(1.0, 0.6, 0.15), vec3(1.0, 0.85, 0.5), smoothstep(0.0, 1.5, dist));
-    col = mix(col, hotColor, influence * 0.8 * exp(-age * 0.5));
-
-    // Expanding ring shows blue-shifted edge
     float waveR = age * 2.5;
-    float ringDist = abs(dist - waveR);
-    float ringInf = exp(-ringDist * 3.0) * exp(-age * 0.4);
-    vec3 coolEdge = vec3(0.3, 0.5, 1.0);
-    col = mix(col, coolEdge, ringInf * 0.5);
+    float ri = exp(-abs(dist - waveR) * 3.0) * exp(-age * 0.4);
+    col = mix(col, vec3(0.3, 0.5, 1.0), ri * 0.5);
 
-    // Iridescent shimmer in turbulent zone
-    float shimmer = sin(dist * 10.0 + age * 3.0) * 0.5 + 0.5;
-    vec3 iridescentCol = mix(vec3(0.6, 0.2, 0.8), vec3(0.2, 0.8, 0.6), shimmer);
-    float iridescentInf = exp(-dist * 1.0) * exp(-age * 0.3) * 0.25;
-    col = mix(col, iridescentCol, iridescentInf * (1.0 - exp(-age * 2.0)));
+    float sh = sin(dist * 10.0 + age * 3.0) * 0.5 + 0.5;
+    vec3 iri = mix(vec3(0.6, 0.2, 0.8), vec3(0.2, 0.8, 0.6), sh);
+    col = mix(col, iri, exp(-dist) * exp(-age * 0.3) * 0.25 * (1.0 - exp(-age * 2.0)));
   }
   return col;
 }
 
+// Main density function — two quality levels
 float smokeDensity(vec3 p, float t, bool cheap){
-  // Apply impact domain warping FIRST — this physically displaces the smoke
+  // Early shape test — skip noise entirely if outside envelope
+  float shape = smoothstep(4.5, 0.5, abs(p.x))
+              * smoothstep(3.0, 0.0, abs(p.y))
+              * smoothstep(3.0, 0.3, p.z)
+              * smoothstep(-0.8, 0.3, p.z);
+  if(shape < 0.001) return 0.0;
+
   vec3 warp = impactWarp(p);
   vec3 wp = p + warp;
 
-  // Animated noise coordinates
+  float tS = t * u_speed * 0.25;
   vec3 q = wp * 0.9;
-  float tSpeed = t * u_speed * 0.25;
-  q.y -= tSpeed * 0.6;
-  q.x += sin(wp.y * 0.4 + tSpeed) * 0.25;
-  q.z += cos(wp.x * 0.3 + tSpeed * 0.7) * 0.15;
+  q.y -= tS * 0.6;
+  q.x += sin(wp.y * 0.4 + tS) * 0.25;
+  q.z += cos(wp.x * 0.3 + tS * 0.7) * 0.15;
 
-  // Density from warped FBM
   float f;
   if(cheap){
-    f = fbm(q) * 0.7 + 0.3 * gnoise(q * 2.5);
+    f = fbm3(q) * 0.7 + 0.25;
   } else {
     f = warpedFbm(q, t) * 0.5 + 0.5;
-    f += 0.2 * gnoise(q * 3.0 + vec3(t * 0.2));
+    f += 0.15 * gnoise(q * 3.0 + vec3(t * 0.2));
   }
 
-  // Shape envelope
-  float shape = smoothstep(4.0, 0.5, abs(p.x))
-              * smoothstep(2.8, 0.0, abs(p.y))
-              * smoothstep(2.5, 0.3, p.z)
-              * smoothstep(-0.5, 0.3, p.z);
-
-  // Audio pulsation
   shape *= 1.0 + u_bassLevel * 0.5;
-
   float d = f * shape * u_density * 2.5;
+  d *= (1.0 - impactVoid(p));
 
-  // Subtract void from impacts
-  float v = impactVoid(p);
-  d *= (1.0 - v);
-
-  // Ring contributions
+  // Rings
   for(int i = 0; i < MAX_RINGS; i++){
     if(i >= u_ringCount) break;
     vec2 rp = u_rings[i].xy;
     float rr = u_rings[i].z;
     float rage = u_rings[i].w;
-    float dist2d = length(p.xz - rp);
-    float ringD = abs(dist2d - rr);
-    float vertFade = exp(-p.y * p.y * 0.5);
-    float ring = exp(-ringD * 5.0) * exp(-rage * 1.2) * vertFade * 0.7;
-    d += ring;
+    float d2 = length(p.xz - rp);
+    d += exp(-abs(d2 - rr) * 5.0) * exp(-rage * 1.2) * exp(-p.y*p.y*0.5) * 0.7;
   }
 
   return max(d, 0.0);
 }
 
 void main(){
-  vec2 uv = (gl_FragCoord.xy - u_res * 0.5) / u_res.y;
+  // UV based on full display resolution for correct aspect
+  vec2 uv = (gl_FragCoord.xy / u_res * u_fullRes - u_fullRes * 0.5) / u_fullRes.y;
   float t = u_time;
 
-  // Camera
-  vec3 ro = vec3(u_camX, u_aimY * 0.3, -4.0);
+  vec3 ro = u_camPos;
   vec3 rd = normalize(vec3(uv.x, uv.y, 0.85));
 
-  // Raymarch through volume
+  // AABB ray-volume intersection for early skip
+  // Volume: x in [-4.5, 4.5], y in [-3, 3], z in [-0.8, 3.0]
+  vec3 bmin = vec3(-4.5, -3.0, -0.8);
+  vec3 bmax = vec3(4.5, 3.0, 3.0);
+  vec3 invRd = 1.0 / rd;
+  vec3 t0s = (bmin - ro) * invRd;
+  vec3 t1s = (bmax - ro) * invRd;
+  vec3 tmin = min(t0s, t1s);
+  vec3 tmax = max(t0s, t1s);
+  float tNear = max(max(tmin.x, tmin.y), tmin.z);
+  float tFar = min(min(tmax.x, tmax.y), tmax.z);
+
   vec3 col = vec3(0.015, 0.02, 0.04);
-  float transmittance = 1.0;
-  float tRay = 1.0; // start a bit in front
-  float dt = 0.07;
 
-  for(int i = 0; i < 96; i++){
-    if(transmittance < 0.01) break;
-    if(tRay > 10.0) break;
+  if(tFar < tNear || tFar < 0.0){
+    // Missed volume entirely
+  } else {
+    float transmittance = 1.0;
+    float tRay = max(tNear, 0.5);
+    float tEnd = min(tFar, 12.0);
 
-    vec3 p = ro + rd * tRay;
-    float d = smokeDensity(p, t, false);
+    // Adaptive step: start coarse, refine in dense regions
+    float dt = 0.1;
 
-    if(d > 0.005){
-      // Lighting with cheap shadow sample
-      vec3 lightDir = normalize(vec3(0.4, 0.8, -0.3));
-      float dLight = smokeDensity(p + lightDir * 0.4, t, true);
-      float shadow = exp(-max(dLight - d, 0.0) * 4.0);
+    for(int i = 0; i < 80; i++){
+      if(transmittance < 0.02 || tRay > tEnd) break;
 
-      // Base color + impact color shifts
-      vec3 smokeCol = impactColor(p, u_smokeColor);
+      vec3 p = ro + rd * tRay;
+      float d = smokeDensity(p, t, false);
 
-      // Audio color tint
-      smokeCol += vec3(0.04, 0.015, 0.07) * u_audioLevel;
+      if(d > 0.005){
+        // Refine step size in dense areas
+        dt = 0.06;
 
-      // Ambient + lit
-      vec3 ambient = smokeCol * 0.25;
-      vec3 lit = smokeCol * shadow * 0.75;
-      vec3 scatterCol = ambient + lit;
+        vec3 ldir = normalize(vec3(0.4, 0.8, -0.3));
+        float dL = smokeDensity(p + ldir * 0.35, t, true);
+        float shadow = exp(-max(dL - d, 0.0) * 4.0);
 
-      // Slight back-scatter highlight
-      float backScatter = pow(max(dot(rd, lightDir), 0.0), 3.0) * 0.15;
-      scatterCol += vec3(1.0, 0.9, 0.7) * backScatter * shadow;
+        vec3 sc = impactColor(p, u_smokeColor);
+        sc += vec3(0.04, 0.015, 0.07) * u_audioLevel;
 
-      float alpha = 1.0 - exp(-d * dt * 7.0);
-      col += transmittance * alpha * scatterCol;
-      transmittance *= (1.0 - alpha);
+        vec3 lit = sc * (0.25 + 0.75 * shadow);
+        lit += vec3(1.0, 0.9, 0.7) * pow(max(dot(rd, ldir), 0.0), 3.0) * 0.15 * shadow;
+
+        float alpha = 1.0 - exp(-d * dt * 7.0);
+        col += transmittance * alpha * lit;
+        transmittance *= (1.0 - alpha);
+      } else {
+        dt = 0.12; // coarse step in empty space
+      }
+
+      tRay += dt;
     }
 
-    tRay += dt;
-  }
-
-  // Flying projectile glow (in-scene)
-  for(int i = 0; i < MAX_PROJ; i++){
-    if(i >= u_projCount) break;
-    vec3 pp = u_projPos[i].xyz;
-    float age = u_projPos[i].w;
-    // Project to screen
-    vec3 rel = pp - ro;
-    if(rel.z < 0.1) continue;
-    vec2 projected = rel.xy / rel.z * 0.85;
-    float screenDist = length(uv - projected);
-    float glow = 0.015 / (screenDist * screenDist + 0.002) * exp(-age * 0.3);
-    glow = min(glow, 2.0);
-    col += vec3(1.0, 0.65, 0.2) * glow * transmittance * 0.15;
+    // Projectile glow
+    for(int i = 0; i < MAX_PROJ; i++){
+      if(i >= u_projCount) break;
+      vec3 rel = u_projPos[i].xyz - ro;
+      if(rel.z < 0.1) continue;
+      vec2 proj = rel.xy / rel.z * 0.85;
+      float sd = length(uv - proj);
+      float glow = min(0.015 / (sd * sd + 0.002) * exp(-u_projPos[i].w * 0.3), 2.0);
+      col += vec3(1.0, 0.65, 0.2) * glow * transmittance * 0.15;
+    }
   }
 
   // Vignette
-  vec2 vc = gl_FragCoord.xy / u_res - 0.5;
+  vec2 vc = v_uv - 0.5;
   col *= 1.0 - 0.35 * dot(vc, vc);
-
-  // Tonemap
-  col = col / (1.0 + col);
-  col = pow(col, vec3(0.92));
 
   fragColor = vec4(col, 1.0);
 }`;
 
-// --- Build program ---
-const prog = createProgram(
-  createShader(gl.VERTEX_SHADER, quadVS),
-  createShader(gl.FRAGMENT_SHADER, smokeFS)
-);
+// ============================================================
+// UPSCALE SHADER — bilinear with slight sharpening
+// ============================================================
+const UPSCALE_FS = `#version 300 es
+precision highp float;
+in vec2 v_uv;
+out vec4 fragColor;
+uniform sampler2D u_tex;
+uniform vec2 u_texelSize; // 1/render_res
+
+void main(){
+  // Catmull-Rom-ish sharpening via unsharp mask
+  vec3 c = texture(u_tex, v_uv).rgb;
+  vec3 n = texture(u_tex, v_uv + vec2(0, u_texelSize.y)).rgb;
+  vec3 s = texture(u_tex, v_uv - vec2(0, u_texelSize.y)).rgb;
+  vec3 e = texture(u_tex, v_uv + vec2(u_texelSize.x, 0)).rgb;
+  vec3 w = texture(u_tex, v_uv - vec2(u_texelSize.x, 0)).rgb;
+  vec3 blur = (n + s + e + w) * 0.25;
+  vec3 sharp = c + (c - blur) * 0.3;
+
+  // Tonemap
+  sharp = sharp / (1.0 + sharp);
+  sharp = pow(max(sharp, vec3(0.0)), vec3(0.92));
+
+  fragColor = vec4(sharp, 1.0);
+}`;
+
+// ============================================================
+// BUILD PROGRAMS
+// ============================================================
+const smokeProg = mkProgram(QUAD_VS, SMOKE_FS);
+const upscaleProg = mkProgram(QUAD_VS, UPSCALE_FS);
 
 const quadBuf = gl.createBuffer();
 gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
 gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1,1,-1,-1,1,1,1]), gl.STATIC_DRAW);
-const aPos = gl.getAttribLocation(prog, 'a_pos');
-gl.enableVertexAttribArray(aPos);
-gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
-// Uniform cache
-const U = {};
-function loc(n){ U[n] = gl.getUniformLocation(prog, n); }
-['u_time','u_res','u_smokeColor','u_density','u_speed','u_camX','u_aimY',
- 'u_audioLevel','u_bassLevel','u_impCount','u_projCount','u_ringCount'].forEach(loc);
-for(let i=0;i<20;i++) loc('u_imp['+i+']');
-for(let i=0;i<16;i++) loc('u_projPos['+i+']');
-for(let i=0;i<12;i++) loc('u_rings['+i+']');
+function bindQuad(prog) {
+  const loc = gl.getAttribLocation(prog, 'a_pos');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+}
 
-// --- State ---
-let camX = 0, aimY = 0, mouseNDCx = 0, mouseNDCy = 0;
+// Smoke uniforms
+const sU = {};
+function sLoc(n){ sU[n] = gl.getUniformLocation(smokeProg, n); }
+['u_time','u_res','u_fullRes','u_smokeColor','u_density','u_speed',
+ 'u_camPos','u_aimY','u_audioLevel','u_bassLevel',
+ 'u_impCount','u_projCount','u_ringCount'].forEach(sLoc);
+for(let i=0;i<20;i++) sLoc('u_imp['+i+']');
+for(let i=0;i<16;i++) sLoc('u_projPos['+i+']');
+for(let i=0;i<12;i++) sLoc('u_rings['+i+']');
+
+// Upscale uniforms
+const uU = {};
+uU.u_tex = gl.getUniformLocation(upscaleProg, 'u_tex');
+uU.u_texelSize = gl.getUniformLocation(upscaleProg, 'u_texelSize');
+
+// ============================================================
+// STATE
+// ============================================================
+let camX = 0, camY = 0, camZ = -4.0;
+let aimY = 0, mouseNDCx = 0, mouseNDCy = 0;
 const keys = {};
-const projectiles = []; // flying bullets
-const impacts = [];     // where bullets hit smoke
+const projectiles = [];
+const impacts = [];
 const rings = [];
 let audioLevel = 0, bassLevel = 0, lastRingTime = 0;
 let audioCtx, analyser, dataArray;
 
-// --- Audio ---
+// ============================================================
+// AUDIO
+// ============================================================
 async function initAudio(){
   try {
     audioCtx = new AudioContext();
@@ -411,7 +470,7 @@ async function initAudio(){
     analyser.smoothingTimeConstant = 0.7;
     src.connect(analyser);
     dataArray = new Uint8Array(analyser.frequencyBinCount);
-  } catch(e){ console.log('No mic, synthetic pulse'); }
+  } catch(e){ console.log('No mic — synthetic pulse active'); }
 }
 
 function updateAudio(t){
@@ -430,40 +489,35 @@ function updateAudio(t){
   }
 }
 
-// --- Input ---
-window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+// ============================================================
+// INPUT
+// ============================================================
+window.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true; });
+window.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false; });
 window.addEventListener('mousemove', e => {
-  // NDC coords matching the shader's uv calculation
   mouseNDCx = (e.clientX - W * 0.5) / H;
   mouseNDCy = (H * 0.5 - e.clientY) / H;
   aimY = mouseNDCy * 2.0;
 });
 
-function shootProjectile(){
-  // Ray direction matching exactly what the shader does
-  const rdx = mouseNDCx;
-  const rdy = mouseNDCy;
-  const rdz = 0.85;
-  const len = Math.sqrt(rdx*rdx + rdy*rdy + rdz*rdz);
-  const dx = rdx/len, dy = rdy/len, dz = rdz/len;
-
-  projectiles.push({
-    x: camX, y: aimY * 0.3, z: -4.0,
-    vx: dx * CFG.projectileSpeed,
-    vy: dy * CFG.projectileSpeed,
-    vz: dz * CFG.projectileSpeed,
-    age: 0, hit: false
-  });
-}
-
 canvas.addEventListener('mousedown', e => {
-  if(e.button === 0) shootProjectile();
+  if(e.button === 0){
+    const rdx = mouseNDCx, rdy = mouseNDCy, rdz = 0.85;
+    const len = Math.sqrt(rdx*rdx + rdy*rdy + rdz*rdz);
+    projectiles.push({
+      x: camX, y: camY + aimY * 0.3, z: camZ,
+      vx: rdx/len * CFG.projectileSpeed,
+      vy: rdy/len * CFG.projectileSpeed,
+      vz: rdz/len * CFG.projectileSpeed,
+      age: 0, hit: false
+    });
+  }
 });
-// Prevent UI panel clicks from also shooting
 document.getElementById('ui').addEventListener('mousedown', e => e.stopPropagation());
 
-// --- UI ---
+// ============================================================
+// UI
+// ============================================================
 document.getElementById('smokeColor').addEventListener('input', e => {
   const h = e.target.value;
   CFG.smokeColor = [parseInt(h.slice(1,3),16)/255, parseInt(h.slice(3,5),16)/255, parseInt(h.slice(5,7),16)/255];
@@ -471,8 +525,16 @@ document.getElementById('smokeColor').addEventListener('input', e => {
 document.getElementById('density').addEventListener('input', e => CFG.density = e.target.value / 100);
 document.getElementById('speed').addEventListener('input', e => CFG.speed = e.target.value / 100);
 document.getElementById('audioReact').addEventListener('input', e => CFG.audioReact = e.target.value / 100);
+document.getElementById('quality').addEventListener('input', e => {
+  CFG.quality = e.target.value / 100;
+  rW = Math.round(W * CFG.quality);
+  rH = Math.round(H * CFG.quality);
+  createFBO(rW, rH);
+});
 
-// --- Loop ---
+// ============================================================
+// FRAME LOOP
+// ============================================================
 let prevT = 0;
 function frame(now){
   requestAnimationFrame(frame);
@@ -480,12 +542,15 @@ function frame(now){
   const dt = Math.min(t - prevT, 0.05);
   prevT = t;
 
+  // Movement: WASD — A/D strafe, W/S forward/back
   if(keys['a']) camX -= CFG.panSpeed * dt;
   if(keys['d']) camX += CFG.panSpeed * dt;
+  if(keys['w']) camZ += CFG.moveSpeed * dt;
+  if(keys['s']) camZ -= CFG.moveSpeed * dt;
 
   updateAudio(t);
 
-  // Rings on low audio
+  // Smoke rings on low audio
   if(audioLevel < 0.12 * CFG.audioReact + 0.04){
     if(t - lastRingTime > 1.4){
       rings.push({ x: -4.0 + camX, z: 0.8, radius: 0.1, age: 0 });
@@ -494,14 +559,12 @@ function frame(now){
     }
   }
 
-  // Update rings
   for(let i = rings.length - 1; i >= 0; i--){
     rings[i].age += dt;
     rings[i].radius += dt * 1.8;
     if(rings[i].age > 3.5) rings.splice(i, 1);
   }
 
-  // Update projectiles — ray-march style hit test against the smoke volume bounds
   for(let i = projectiles.length - 1; i >= 0; i--){
     const p = projectiles[i];
     p.x += p.vx * dt;
@@ -509,52 +572,66 @@ function frame(now){
     p.z += p.vz * dt;
     p.age += dt;
 
-    // Smoke volume is roughly: |x-camX| < 4, |y| < 2.8, z in [-0.5, 2.5]
-    // Register impact when projectile enters the volume
-    if(!p.hit && p.z > -0.3 && p.z < 2.8 && Math.abs(p.x) < 5.0 && Math.abs(p.y) < 3.5){
+    if(!p.hit && p.z > -0.5 && p.z < 3.2 && Math.abs(p.x) < 5.0 && Math.abs(p.y) < 3.5){
       p.hit = true;
       impacts.push({ x: p.x, y: p.y, z: p.z, age: 0 });
     }
-
-    if(p.age > 3.0 || p.z > 12.0) projectiles.splice(i, 1);
+    if(p.age > 3.0 || p.z > 14.0) projectiles.splice(i, 1);
   }
 
-  // Update impacts
   for(let i = impacts.length - 1; i >= 0; i--){
     impacts[i].age += dt;
     if(impacts[i].age > 8.0) impacts.splice(i, 1);
   }
 
-  // --- Render ---
-  gl.useProgram(prog);
-  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
-  gl.enableVertexAttribArray(aPos);
-  gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
+  // ---- PASS 1: Smoke to half-res FBO ----
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+  gl.viewport(0, 0, rW, rH);
 
-  gl.uniform1f(U.u_time, t);
-  gl.uniform2f(U.u_res, W, H);
-  gl.uniform3fv(U.u_smokeColor, CFG.smokeColor);
-  gl.uniform1f(U.u_density, CFG.density);
-  gl.uniform1f(U.u_speed, CFG.speed);
-  gl.uniform1f(U.u_camX, camX);
-  gl.uniform1f(U.u_aimY, aimY);
-  gl.uniform1f(U.u_audioLevel, audioLevel);
-  gl.uniform1f(U.u_bassLevel, bassLevel);
+  gl.useProgram(smokeProg);
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  bindQuad(smokeProg);
+
+  gl.uniform1f(sU.u_time, t);
+  gl.uniform2f(sU.u_res, rW, rH);
+  gl.uniform2f(sU.u_fullRes, W, H);
+  gl.uniform3fv(sU.u_smokeColor, CFG.smokeColor);
+  gl.uniform1f(sU.u_density, CFG.density);
+  gl.uniform1f(sU.u_speed, CFG.speed);
+  gl.uniform3f(sU.u_camPos, camX, camY + aimY * 0.3, camZ);
+  gl.uniform1f(sU.u_aimY, aimY);
+  gl.uniform1f(sU.u_audioLevel, audioLevel);
+  gl.uniform1f(sU.u_bassLevel, bassLevel);
 
   const ic = Math.min(impacts.length, 20);
-  gl.uniform1i(U.u_impCount, ic);
+  gl.uniform1i(sU.u_impCount, ic);
   for(let i = 0; i < ic; i++)
-    gl.uniform4f(U['u_imp['+i+']'], impacts[i].x, impacts[i].y, impacts[i].z, impacts[i].age);
+    gl.uniform4f(sU['u_imp['+i+']'], impacts[i].x, impacts[i].y, impacts[i].z, impacts[i].age);
 
   const pc = Math.min(projectiles.length, 16);
-  gl.uniform1i(U.u_projCount, pc);
+  gl.uniform1i(sU.u_projCount, pc);
   for(let i = 0; i < pc; i++)
-    gl.uniform4f(U['u_projPos['+i+']'], projectiles[i].x, projectiles[i].y, projectiles[i].z, projectiles[i].age);
+    gl.uniform4f(sU['u_projPos['+i+']'], projectiles[i].x, projectiles[i].y, projectiles[i].z, projectiles[i].age);
 
   const rc = Math.min(rings.length, 12);
-  gl.uniform1i(U.u_ringCount, rc);
+  gl.uniform1i(sU.u_ringCount, rc);
   for(let i = 0; i < rc; i++)
-    gl.uniform4f(U['u_rings['+i+']'], rings[i].x, rings[i].z, rings[i].radius, rings[i].age);
+    gl.uniform4f(sU['u_rings['+i+']'], rings[i].x, rings[i].z, rings[i].radius, rings[i].age);
+
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  // ---- PASS 2: Upscale + sharpen to screen ----
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  gl.viewport(0, 0, W, H);
+
+  gl.useProgram(upscaleProg);
+  gl.bindBuffer(gl.ARRAY_BUFFER, quadBuf);
+  bindQuad(upscaleProg);
+
+  gl.activeTexture(gl.TEXTURE0);
+  gl.bindTexture(gl.TEXTURE_2D, fboTex);
+  gl.uniform1i(uU.u_tex, 0);
+  gl.uniform2f(uU.u_texelSize, 1.0 / rW, 1.0 / rH);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 }
