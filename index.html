@@ -765,7 +765,7 @@ function frame(now){
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, smokeTex);
     gl.uniform1i(sU.u_atlas, 0);
-    gl.uniform2f(sU.u_res, W / 2, H / 2);
+    gl.uniform2f(sU.u_res, W, H);
     gl.uniform2f(sU.u_cam, camX, camY);
     gl.uniform1f(sU.u_camZ, camZ);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, n);
@@ -789,7 +789,7 @@ function frame(now){
 
     gl.useProgram(projProg);
     gl.bindVertexArray(projVAO);
-    gl.uniform2f(pU.u_res, W / 2, H / 2);
+    gl.uniform2f(pU.u_res, W, H);
     gl.drawArraysInstanced(gl.TRIANGLE_STRIP, 0, 4, pCount);
   }
 
