@@ -8,9 +8,19 @@ UFloorDeformationController::UFloorDeformationController()
 	PrimaryComponentTick.bCanEverTick = true;
 
 	// Default 3 wave layers for complex patterns
-	WaveLayers.Add({ 50.0f, 1.0f, 1.0f, 0.0f });
-	WaveLayers.Add({ 25.0f, 2.3f, 1.5f, 1.2f });
-	WaveLayers.Add({ 12.0f, 3.7f, 0.8f, 2.5f });
+	auto MakeWave = [](float Amp, float Freq, float Spd, float Phase) -> FWaveLayer
+	{
+		FWaveLayer L;
+		L.Amplitude = Amp;
+		L.Frequency = Freq;
+		L.Speed = Spd;
+		L.PhaseOffset = Phase;
+		return L;
+	};
+
+	WaveLayers.Add(MakeWave(50.0f, 1.0f, 1.0f, 0.0f));
+	WaveLayers.Add(MakeWave(25.0f, 2.3f, 1.5f, 1.2f));
+	WaveLayers.Add(MakeWave(12.0f, 3.7f, 0.8f, 2.5f));
 }
 
 void UFloorDeformationController::BeginPlay()

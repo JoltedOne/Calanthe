@@ -38,11 +38,21 @@ void AMotionSphere::InitializeDefaultPresets()
 {
 	FlamePresets.Empty();
 
-	FlamePresets.Add({ TEXT("Fire"),  FLinearColor(1.0f, 0.45f, 0.05f), 1.0f, 100 });
-	FlamePresets.Add({ TEXT("Ice"),   FLinearColor(0.2f, 0.6f, 1.0f),   0.8f, 80  });
-	FlamePresets.Add({ TEXT("Toxic"), FLinearColor(0.1f, 1.0f, 0.2f),   0.9f, 90  });
-	FlamePresets.Add({ TEXT("Magic"), FLinearColor(0.7f, 0.2f, 1.0f),   1.0f, 120 });
-	FlamePresets.Add({ TEXT("Pure"),  FLinearColor(1.0f, 1.0f, 1.0f),   1.0f, 150 });
+	auto MakePreset = [](FName Name, FLinearColor Color, float Inten, int32 Count) -> FFlamePreset
+	{
+		FFlamePreset P;
+		P.PresetName = Name;
+		P.FlameColor = Color;
+		P.Intensity = Inten;
+		P.ParticleCount = Count;
+		return P;
+	};
+
+	FlamePresets.Add(MakePreset(TEXT("Fire"),  FLinearColor(1.0f, 0.45f, 0.05f), 1.0f, 100));
+	FlamePresets.Add(MakePreset(TEXT("Ice"),   FLinearColor(0.2f, 0.6f, 1.0f),   0.8f, 80));
+	FlamePresets.Add(MakePreset(TEXT("Toxic"), FLinearColor(0.1f, 1.0f, 0.2f),   0.9f, 90));
+	FlamePresets.Add(MakePreset(TEXT("Magic"), FLinearColor(0.7f, 0.2f, 1.0f),   1.0f, 120));
+	FlamePresets.Add(MakePreset(TEXT("Pure"),  FLinearColor(1.0f, 1.0f, 1.0f),   1.0f, 150));
 }
 
 void AMotionSphere::BeginPlay()
