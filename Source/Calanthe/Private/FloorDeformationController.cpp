@@ -156,7 +156,7 @@ float UFloorDeformationController::ComputeDirectionalWave(const FVector2D& GridP
 	// Wave travels in joystick direction
 	const float DotProduct = FVector2D::DotProduct(GridPos, JoystickDirection);
 	const float FreqScaled = Layer.Frequency * GlobalWaveFrequency;
-	const float Phase = DotProduct * FreqScaled * PI * 2.0f - Time * Layer.Speed + Layer.PhaseOffset;
+	const float Phase = DotProduct * FreqScaled * UE_PI * 2.0f - Time * Layer.Speed + Layer.PhaseOffset;
 	return FMath::Sin(Phase) * Layer.Amplitude;
 }
 
@@ -165,7 +165,7 @@ float UFloorDeformationController::ComputeRadialWave(const FVector2D& GridPos, c
 	// Waves emanate outward from center
 	const float Dist = FVector2D::Distance(GridPos, Center);
 	const float FreqScaled = Layer.Frequency * GlobalWaveFrequency;
-	const float Phase = Dist * FreqScaled * PI * 2.0f - Time * Layer.Speed + Layer.PhaseOffset;
+	const float Phase = Dist * FreqScaled * UE_PI * 2.0f - Time * Layer.Speed + Layer.PhaseOffset;
 	return FMath::Sin(Phase) * Layer.Amplitude;
 }
 

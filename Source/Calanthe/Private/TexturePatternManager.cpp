@@ -152,7 +152,7 @@ void UTexturePatternManager::UpdateAutoAnimation(float DeltaTime)
 	AnimationPhase += AutoAnimateSpeed * DeltaTime;
 
 	// Sine wave oscillation: 0 → 1 → 0 → 1...
-	const float BlendValue = (FMath::Sin(AnimationPhase * PI * 2.0f) + 1.0f) * 0.5f;
+	const float BlendValue = (FMath::Sin(AnimationPhase * UE_PI * 2.0f) + 1.0f) * 0.5f;
 	CurrentEmissionBlend = BlendValue;
 	OnEmissionBlendChanged.Broadcast(CurrentEmissionBlend);
 }

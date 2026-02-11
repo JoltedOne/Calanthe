@@ -2,7 +2,9 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Components/StaticMeshComponent.h"
 #include "ProceduralMeshComponent.h"
+#include "Materials/MaterialInstanceDynamic.h"
 #include "LitCubeStage.generated.h"
 
 UENUM(BlueprintType)

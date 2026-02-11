@@ -105,7 +105,7 @@ void AMotionSphere::UpdateIdleMotion(float DeltaTime)
 
 	const float X = OriginLocation.X + FMath::Cos(OrbitAngle) * IdleOrbitRadius;
 	const float Y = OriginLocation.Y + FMath::Sin(OrbitAngle) * IdleOrbitRadius;
-	const float Z = OriginLocation.Z + FMath::Sin(StateTime * IdleBobFrequency * PI * 2.0f) * IdleBobAmplitude;
+	const float Z = OriginLocation.Z + FMath::Sin(StateTime * IdleBobFrequency * UE_PI * 2.0f) * IdleBobAmplitude;
 
 	SetActorLocation(FVector(X, Y, Z));
 
@@ -116,7 +116,7 @@ void AMotionSphere::UpdateIdleMotion(float DeltaTime)
 
 void AMotionSphere::UpdateSwayMotion(float DeltaTime)
 {
-	const float SwayPhase = StateTime * SwayFrequency * PI * 2.0f;
+	const float SwayPhase = StateTime * SwayFrequency * UE_PI * 2.0f;
 
 	const float X = OriginLocation.X + FMath::Sin(SwayPhase) * SwayAmplitude;
 	const float Y = OriginLocation.Y + FMath::Sin(SwayPhase * 0.7f) * SwayAmplitude * 0.5f;
@@ -146,7 +146,7 @@ void AMotionSphere::UpdateRollMotion(float DeltaTime)
 
 	// Bounce effect
 	const float BouncePhase = StateTime * 3.0f;
-	CurrentLoc.Z = OriginLocation.Z + FMath::Abs(FMath::Sin(BouncePhase * PI)) * RollBounceHeight;
+	CurrentLoc.Z = OriginLocation.Z + FMath::Abs(FMath::Sin(BouncePhase * UE_PI)) * RollBounceHeight;
 
 	SetActorLocation(CurrentLoc);
 

@@ -24,8 +24,7 @@ public class Calanthe : ModuleRules
 
 		PrivateDependencyModuleNames.AddRange(new string[]
 		{
-			"AudioMixer",
-			"AudioAnalyzer"
+			"AudioMixer"
 		});
 	}
 }
