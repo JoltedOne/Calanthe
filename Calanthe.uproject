@@ -2,7 +2,7 @@
 	"FileVersion": 3,
 	"EngineAssociation": "5.4",
 	"Category": "",
-	"Description": "Visual Synthesizer VJ System - Professional real-time music video production tool",
+	"Description": "Visual Synthesizer VJ System",
 	"Modules": [
 		{
 			"Name": "Calanthe",
@@ -16,18 +16,6 @@
 	"Plugins": [
 		{
 			"Name": "Niagara",
-			"Enabled": true
-		},
-		{
-			"Name": "ProceduralMeshComponent",
-			"Enabled": true
-		},
-		{
-			"Name": "EnhancedInput",
-			"Enabled": true
-		},
-		{
-			"Name": "MovieRenderPipeline",
 			"Enabled": true
 		}
 	]

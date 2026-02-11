@@ -12,17 +12,8 @@ public class Calanthe : ModuleRules
 			"CoreUObject",
 			"Engine",
 			"InputCore",
-			"EnhancedInput",
-			"UMG",
-			"Slate",
-			"SlateCore",
 			"ProceduralMeshComponent",
 			"Niagara"
-		});
-
-		PrivateDependencyModuleNames.AddRange(new string[]
-		{
-			"AudioMixer"
 		});
 	}
 }
