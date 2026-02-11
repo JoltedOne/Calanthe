@@ -1,5 +1,4 @@
 #include "MotionSphere.h"
-#include "NiagaraFunctionLibrary.h"
 #include "Calanthe.h"
 
 AMotionSphere::AMotionSphere()
@@ -78,7 +77,7 @@ void AMotionSphere::Tick(float DeltaTime)
 	if (bFlameAudioReactive && FlameEffect)
 	{
 		const float ModulatedIntensity = CurrentFlameIntensity * (1.0f + ExternalBassLevel * AudioReactivity * 2.0f);
-		FlameEffect->SetFloatParameter(TEXT("SpawnRate"), ModulatedIntensity * 100.0f);
+		FlameEffect->SetVariableFloat(FName("SpawnRate"), ModulatedIntensity * 100.0f);
 	}
 }
 
@@ -172,13 +171,13 @@ void AMotionSphere::SetFlameColor(FLinearColor Color)
 {
 	if (FlameEffect)
 	{
-		FlameEffect->SetColorParameter(TEXT("FlameColor"), Color);
+		FlameEffect->SetVariableLinearColor(FName("FlameColor"), Color);
 	}
 	if (SmokeEffect)
 	{
 		// Smoke tinted slightly by flame color
 		FLinearColor SmokeColor = FLinearColor::LerpUsingHSV(FLinearColor(0.1f, 0.1f, 0.1f), Color, 0.3f);
-		SmokeEffect->SetColorParameter(TEXT("SmokeColor"), SmokeColor);
+		SmokeEffect->SetVariableLinearColor(FName("SmokeColor"), SmokeColor);
 	}
 }
 
@@ -187,8 +186,8 @@ void AMotionSphere::SetFlameIntensity(float Intensity)
 	CurrentFlameIntensity = FMath::Clamp(Intensity, 0.0f, 1.0f);
 	if (FlameEffect)
 	{
-		FlameEffect->SetFloatParameter(TEXT("SpawnRate"), CurrentFlameIntensity * 100.0f);
-		FlameEffect->SetFloatParameter(TEXT("Intensity"), CurrentFlameIntensity);
+		FlameEffect->SetVariableFloat(FName("SpawnRate"), CurrentFlameIntensity * 100.0f);
+		FlameEffect->SetVariableFloat(FName("Intensity"), CurrentFlameIntensity);
 	}
 }
 
@@ -197,7 +196,7 @@ void AMotionSphere::SetFlameParticleCount(int32 Count)
 	Count = FMath::Clamp(Count, 10, 200);
 	if (FlameEffect)
 	{
-		FlameEffect->SetIntParameter(TEXT("MaxParticles"), Count);
+		FlameEffect->SetVariableInt(FName("MaxParticles"), Count);
 	}
 }
 

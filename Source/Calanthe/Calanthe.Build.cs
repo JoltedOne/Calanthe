@@ -17,9 +17,7 @@ public class Calanthe : ModuleRules
 			"Slate",
 			"SlateCore",
 			"ProceduralMeshComponent",
-			"Niagara",
-			"RenderCore",
-			"RHI"
+			"Niagara"
 		});
 
 		PrivateDependencyModuleNames.AddRange(new string[]
