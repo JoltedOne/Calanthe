@@ -27,6 +27,12 @@ void UFloorDeformationController::BeginPlay()
 {
 	Super::BeginPlay();
 	WaveTime = 0.0f;
+
+	// Auto-discover stage if attached directly to a LitCubeStage actor
+	if (!StageRef)
+	{
+		StageRef = Cast<ALitCubeStage>(GetOwner());
+	}
 }
 
 void UFloorDeformationController::TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction)

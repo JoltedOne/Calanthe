@@ -169,6 +169,9 @@ private:
 	void ApplyWallMaterialConfig(EWallID Wall);
 
 	UPROPERTY()
+	TObjectPtr<UStaticMesh> PlaneMesh;
+
+	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> FloorMesh;
 
 	UPROPERTY()

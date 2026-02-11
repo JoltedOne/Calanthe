@@ -15,6 +15,13 @@ ALitCubeStage::ALitCubeStage()
 	FloorMesh->SetupAttachment(Root);
 	FloorMesh->bUseAsyncCooking = true;
 
+	// Load engine default plane mesh for walls and ceiling
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneFinder(TEXT("/Engine/BasicShapes/Plane"));
+	if (PlaneFinder.Succeeded())
+	{
+		PlaneMesh = PlaneFinder.Object;
+	}
+
 	// Initialize default wall configs
 	WallConfigs.Add(EWallID::Front, FWallConfig());
 	WallConfigs.Add(EWallID::Back, FWallConfig());
@@ -182,8 +189,10 @@ void ALitCubeStage::BuildWalls()
 		Wall->SetRelativeScale3D(Def.Scale * 0.01f); // Scale for unit plane mesh
 		Wall->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
-		// Assign static mesh (default plane) — set in Blueprint
-		// Wall->SetStaticMesh(PlaneMesh);
+		if (PlaneMesh)
+		{
+			Wall->SetStaticMesh(PlaneMesh);
+		}
 
 		if (WallBaseMaterial)
 		{
@@ -222,6 +231,11 @@ void ALitCubeStage::BuildCeiling()
 	CeilingMesh->SetRelativeRotation(FRotator(180, 0, 0));
 	CeilingMesh->SetRelativeScale3D(FVector(StageWidth, StageDepth, 1) * 0.01f);
 	CeilingMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+	if (PlaneMesh)
+	{
+		CeilingMesh->SetStaticMesh(PlaneMesh);
+	}
 
 	if (WallBaseMaterial)
 	{
@@ -275,6 +289,11 @@ void ALitCubeStage::BuildLightStrips()
 			Strip->SetRelativeRotation(FRotator(0, YawRot, 0));
 			Strip->SetRelativeScale3D(FVector(StripWidth, 1, StripHeight) * 0.01f);
 			Strip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+			if (PlaneMesh)
+			{
+				Strip->SetStaticMesh(PlaneMesh);
+			}
 
 			if (LightStripBaseMaterial)
 			{
