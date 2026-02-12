@@ -120,10 +120,10 @@ private:
 	float WaveTime = 0.0f;
 	float ExternalBassLevel = 0.0f;
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "VJ|Floor")
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "VJ|Floor", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<ALitCubeStage> StageRef;
 
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "VJ|Floor")
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "VJ|Floor", meta = (AllowPrivateAccess = "true"))
 	TObjectPtr<AMotionSphere> SphereRef;
 
 	TArray<float> HeightMapBuffer;
