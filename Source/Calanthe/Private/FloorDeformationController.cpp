@@ -2,6 +2,7 @@
 #include "LitCubeStage.h"
 #include "MotionSphere.h"
 #include "Calanthe.h"
+#include "Kismet/GameplayStatics.h"
 
 UFloorDeformationController::UFloorDeformationController()
 {
@@ -28,10 +29,24 @@ void UFloorDeformationController::BeginPlay()
 	Super::BeginPlay();
 	WaveTime = 0.0f;
 
-	// Auto-discover stage if attached directly to a LitCubeStage actor
+	// Auto-discover stage: check owner first, then search the world
 	if (!StageRef)
 	{
 		StageRef = Cast<ALitCubeStage>(GetOwner());
+	}
+	if (!StageRef)
+	{
+		AActor* Found = UGameplayStatics::GetActorOfClass(this, ALitCubeStage::StaticClass());
+		StageRef = Cast<ALitCubeStage>(Found);
+	}
+
+	if (StageRef)
+	{
+		UE_LOG(LogCalanthe, Log, TEXT("FloorDeformationController: bound to stage '%s'"), *StageRef->GetName());
+	}
+	else
+	{
+		UE_LOG(LogCalanthe, Warning, TEXT("FloorDeformationController: no ALitCubeStage found — deformation disabled"));
 	}
 }
 

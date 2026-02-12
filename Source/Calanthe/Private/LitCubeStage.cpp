@@ -15,11 +15,13 @@ ALitCubeStage::ALitCubeStage()
 	FloorMesh->SetupAttachment(Root);
 	FloorMesh->bUseAsyncCooking = true;
 
-	// Load engine default plane mesh for walls and ceiling
-	static ConstructorHelpers::FObjectFinder<UStaticMesh> PlaneFinder(TEXT("/Engine/BasicShapes/Plane"));
-	if (PlaneFinder.Succeeded())
+	// Load engine default cube mesh for walls and ceiling
+	// Cube has extent in all 3 axes (100x100x100), so XYZ scale maps directly
+	// to world dimensions with no rotation needed.
+	static ConstructorHelpers::FObjectFinder<UStaticMesh> CubeFinder(TEXT("/Engine/BasicShapes/Cube"));
+	if (CubeFinder.Succeeded())
 	{
-		PlaneMesh = PlaneFinder.Object;
+		PlaneMesh = CubeFinder.Object;
 	}
 
 	// Initialize default wall configs
@@ -167,16 +169,18 @@ void ALitCubeStage::BuildWalls()
 	{
 		EWallID ID;
 		FVector Location;
-		FRotator Rotation;
 		FVector Scale;
 	};
 
-	// Wall definitions: location, rotation, and scale relative to a unit plane
+	// Wall definitions using Cube mesh (100x100x100 units)
+	// Scale maps directly to world axes: X=width, Y=depth, Z=height
+	// Walls are thin (2 units) in the perpendicular direction
+	const float WallThickness = 2.0f;
 	TArray<FWallDef> Defs = {
-		{ EWallID::Front,  FVector(0, -HalfD, HalfH),  FRotator(90, 0, 0),    FVector(StageWidth, 1, StageHeight) },
-		{ EWallID::Back,   FVector(0, HalfD, HalfH),   FRotator(-90, 0, 0),   FVector(StageWidth, 1, StageHeight) },
-		{ EWallID::Left,   FVector(-HalfW, 0, HalfH),  FRotator(0, 0, -90),   FVector(1, StageDepth, StageHeight) },
-		{ EWallID::Right,  FVector(HalfW, 0, HalfH),   FRotator(0, 0, 90),    FVector(1, StageDepth, StageHeight) },
+		{ EWallID::Front,  FVector(0, -HalfD, HalfH),  FVector(StageWidth, WallThickness, StageHeight) },
+		{ EWallID::Back,   FVector(0, HalfD, HalfH),   FVector(StageWidth, WallThickness, StageHeight) },
+		{ EWallID::Left,   FVector(-HalfW, 0, HalfH),  FVector(WallThickness, StageDepth, StageHeight) },
+		{ EWallID::Right,  FVector(HalfW, 0, HalfH),   FVector(WallThickness, StageDepth, StageHeight) },
 	};
 
 	for (const FWallDef& Def : Defs)
@@ -185,8 +189,7 @@ void ALitCubeStage::BuildWalls()
 		Wall->SetupAttachment(RootComponent);
 		Wall->RegisterComponent();
 		Wall->SetRelativeLocation(Def.Location);
-		Wall->SetRelativeRotation(Def.Rotation);
-		Wall->SetRelativeScale3D(Def.Scale * 0.01f); // Scale for unit plane mesh
+		Wall->SetRelativeScale3D(Def.Scale * 0.01f);
 		Wall->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 		if (PlaneMesh)
@@ -228,8 +231,7 @@ void ALitCubeStage::BuildCeiling()
 	CeilingMesh->SetupAttachment(RootComponent);
 	CeilingMesh->RegisterComponent();
 	CeilingMesh->SetRelativeLocation(FVector(0, 0, StageHeight));
-	CeilingMesh->SetRelativeRotation(FRotator(180, 0, 0));
-	CeilingMesh->SetRelativeScale3D(FVector(StageWidth, StageDepth, 1) * 0.01f);
+	CeilingMesh->SetRelativeScale3D(FVector(StageWidth, StageDepth, 2.0f) * 0.01f);
 	CeilingMesh->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 	if (PlaneMesh)
@@ -276,7 +278,6 @@ void ALitCubeStage::BuildLightStrips()
 	for (int32 Side = 0; Side < 2; Side++)
 	{
 		const float XPos = (Side == 0) ? -HalfW + 1.0f : HalfW - 1.0f;
-		const float YawRot = (Side == 0) ? 90.0f : -90.0f;
 
 		for (int32 i = 0; i < LightStripCount; i++)
 		{
@@ -286,8 +287,7 @@ void ALitCubeStage::BuildLightStrips()
 			Strip->SetupAttachment(RootComponent);
 			Strip->RegisterComponent();
 			Strip->SetRelativeLocation(FVector(XPos, YPos, StageHeight * 0.5f));
-			Strip->SetRelativeRotation(FRotator(0, YawRot, 0));
-			Strip->SetRelativeScale3D(FVector(StripWidth, 1, StripHeight) * 0.01f);
+			Strip->SetRelativeScale3D(FVector(2.0f * 0.01f, StripWidth * 0.01f, StripHeight * 0.01f));
 			Strip->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 
 			if (PlaneMesh)

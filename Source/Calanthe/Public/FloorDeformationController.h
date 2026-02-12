@@ -116,14 +116,14 @@ private:
 	float ComputeCircularWave(const FVector2D& GridPos, const FVector2D& Center, const FWaveLayer& Layer, float Time) const;
 
 	FVector2D JoystickDirection = FVector2D::ZeroVector;
-	EWaveMode CurrentWaveMode = EWaveMode::Directional;
+	EWaveMode CurrentWaveMode = EWaveMode::Radial;
 	float WaveTime = 0.0f;
 	float ExternalBassLevel = 0.0f;
 
-	UPROPERTY()
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "VJ|Floor")
 	TObjectPtr<ALitCubeStage> StageRef;
 
-	UPROPERTY()
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category = "VJ|Floor")
 	TObjectPtr<AMotionSphere> SphereRef;
 
 	TArray<float> HeightMapBuffer;
